@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ArcGIS GeometryEngine Tutorial</title>
+    <script src="https://js.arcgis.com/4.24/"></script>
+    <style>
+      html,
+      body,
+      #viewDiv {
+        height: 100%;
+        width: 100%;
+        margin: 0;
+        padding: 0;
+      }
+      #controls {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        background: white;
+        padding: 10px;
+        z-index: 100;
+      }
+    </style>
+  </head>
+  <body>
+    <script>
+      require([
+        "esri/Map",
+        "esri/views/MapView",
+        "esri/geometry/Polygon",
+        "esri/geometry/Polyline",
+        "esri/geometry/geometryEngine",
+        "esri/layers/GraphicsLayer",
+        "esri/Graphic",
+      ], function (
+        Map,
+        MapView,
+        Polygon,
+        Polyline,
+        geometryEngine,
+        GraphicsLayer,
+        Graphic
+      ) {
+        const map = new Map({ basemap: "streets-navigation-vector" });
+        const view = new MapView({
+          container: "viewDiv",
+          map: map,
+          center: [100.5018, 13.7563],
+          zoom: 12,
+        });
+
+        // สร้าง GraphicsLayer เพื่อใส่ Graphic
+        const graphicsLayer = new GraphicsLayer();
+        map.add(graphicsLayer);
+
+        const polygonSymbol = {
+          type: "simple-fill",
+          color: [227, 139, 79, 0.8],
+          outline: {
+            color: [255, 255, 255],
+            width: 1,
+          },
+        };
+
+        const lineSymbol = {
+          type: "simple-line",
+          color: [80, 200, 40],
+          width: 4,
+        };
+
+        const graphicArea = new Graphic({
+          geometry: {
+            type: "polygon", // autocasts as new Polygon()
+            rings: [
+              [100.49, 13.75],
+              [100.52, 13.75],
+              [100.52, 13.77],
+              [100.49, 13.77],
+              [100.49, 13.75],
+            ],
+          },
+          symbol: polygonSymbol,
+          spatialReference: { wkid: 4326 },
+        });
+        const graphicRedPoint = new Graphic({
+          geometry: {
+            type: "point",
+            longitude: 100.505,
+            latitude: 13.76,
+          },
+          symbol: {
+            type: "simple-marker", // autocasts as new SimpleMarkerSymbol()
+            color: [255, 0, 0],
+            outline: {
+              // autocasts as new SimpleLineSymbol()
+              color: [255, 255, 255],
+              width: 2,
+            },
+          },
+          spatialReference: { wkid: 4326 },
+        });
+        const graphicBluePoint = new Graphic({
+          geometry: {
+            type: "point",
+            longitude: 100.53,
+            latitude: 13.78,
+          },
+          symbol: {
+            type: "simple-marker", // autocasts as new SimpleMarkerSymbol()
+            color: [0, 0, 255],
+            outline: {
+              // autocasts as new SimpleLineSymbol()
+              color: [255, 255, 255],
+              width: 2,
+            },
+          },
+          spatialReference: { wkid: 4326 },
+        });
+        graphicsLayer.addMany([graphicArea, graphicRedPoint, graphicBluePoint]);
+
+        function checkRelations() {
+          const result1 = geometryEngine.within(
+            graphicRedPoint.geometry,
+            graphicArea.geometry
+          );
+          const result2 = geometryEngine.within(
+            graphicBluePoint.geometry,
+            graphicArea.geometry
+          );
+
+          document.getElementById("output").innerHTML = `
+                    <strong>Geometry Relations:</strong><br>
+                    Red point is in area: ${result1}<br>
+                    Blue point is in area: ${result2}<br>
+                `;
+        }
+        document
+          .getElementById("chkButton")
+          .addEventListener("click", checkRelations);
+      });
+    </script>
+    <div id="controls">
+      <h3>GeometryEngine Relation Check</h3>
+      <button id="chkButton">Check Relations</button>
+      <p id="output"></p>
+    </div>
+    <div id="viewDiv"></div>
+  </body>
+</html>

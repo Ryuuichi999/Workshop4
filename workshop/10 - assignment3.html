@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Truck Geofencing Simulation</title>
+    <script src="https://js.arcgis.com/4.24/"></script>
+    <style>
+      html,
+      body,
+      #viewDiv {
+        height: 100%;
+        width: 100%;
+        margin: 0;
+        padding: 0;
+      }
+      #status {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        background: white;
+        padding: 10px;
+        z-index: 100;
+        font-size: 16px;
+        font-weight: bold;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="status">
+      Driver Status: <span id="driverStatus" style="color:blue;">Not in Area</span><br />
+      Distance: <span id="driverDistance" style="color:red;"></span>
+    </div>
+    <div id="viewDiv"></div>
+
+    <script>
+      require([
+        "esri/Map",
+        "esri/views/MapView",
+        "esri/geometry/Polygon",
+        "esri/geometry/Point",
+        "esri/geometry/Polyline",
+        "esri/geometry/geometryEngine",
+        "esri/layers/GraphicsLayer",
+        "esri/Graphic",
+      ], function (
+        Map,
+        MapView,
+        Polygon,
+        Point,
+        Polyline,
+        geometryEngine,
+        GraphicsLayer,
+        Graphic
+      ) {
+        const map = new Map({ basemap: "streets-navigation-vector" });
+        const view = new MapView({
+          container: "viewDiv",
+          map: map,
+          center: [100.5018, 13.7563],
+          zoom: 13,
+        });
+
+        // GraphicsLayer for displaying graphics
+        const graphicsLayer = new GraphicsLayer();
+        const graphicsCustomerLayer = new GraphicsLayer();
+        map.add(graphicsCustomerLayer);
+        map.add(graphicsLayer);
+
+        const riderSymbol = {
+          type: "picture-marker",
+          url: "https://drive.google.com/u/0/drive-viewer/AKGpihYfpng6k_u1Q1EIY4aGtWTZRR5jguuI8gIuey_Y-L9p4ZgcTg2dUJhnqeBxZqW6m1RlK0887mAb8HRyt6GNyvjTyMZeTDErThY=s2560",
+          width: "36px",
+          height: "36px",
+        };
+        const customerSymbol = {
+          type: "picture-marker",
+          url: "https://cdn-icons-png.flaticon.com/512/5231/5231019.png",
+          width: "36px",
+          height: "36px",
+        };
+
+        // Initial Driver position
+        const driverPosition = [
+          [100.4918, 13.7563],
+          [100.495, 13.755],
+          [100.5, 13.753],
+          [100.505, 13.751],
+          [100.5118, 13.75],
+          [100.52, 13.748],
+          [100.525, 13.7465],
+          [100.5318, 13.745],
+        ];
+        const customerGraphic = new Graphic({
+          geometry: {
+            type: "point",
+            longitude: 100.5318,
+            latitude: 13.745,
+          },
+          symbol: customerSymbol,
+          spatialReference: { wkid: 4326 },
+        });
+
+        graphicsCustomerLayer.add(customerGraphic);
+
+        const driverStatusElement = document.getElementById("driverStatus");
+        const driverDistanceElement = document.getElementById("driverDistance");
+
+        const buffer1kmSymbol = {
+          type: "simple-fill",
+          color: [140, 140, 222, 0.5],
+          outline: { color: [0, 0, 0, 0.5], width: 2 },
+        };
+
+        const buffer2kmSymbol = {
+          type: "simple-fill",
+          color: [140, 140, 222, 0.5],
+          outline: { color: [0, 0, 0, 0.5], width: 2 },
+        };
+
+        let route = []; // To store driver's route
+
+        let _moveInterval = setInterval(() => {
+          var currentGPS = driverPosition.shift(); // shift คือคำสั่งที่ตัด "เอาข้อมูลตัวแรกออก" จาก Array
+          if (currentGPS != null) {
+            graphicsLayer.removeAll();
+            const driverGraphic = drawDriver(currentGPS);
+
+            // Create buffers around the customer
+            const customerPoint = new Point({
+              longitude: 100.5318,
+              latitude: 13.745,
+              spatialReference: { wkid: 4326 },
+            });
+
+            const buffer1km = geometryEngine.geodesicBuffer(customerPoint, 1, "kilometers");
+            const buffer2km = geometryEngine.geodesicBuffer(customerPoint, 2, "kilometers");
+
+            const bufferGraphic1 = new Graphic({ geometry: buffer1km, symbol: buffer1kmSymbol });
+            const bufferGraphic2 = new Graphic({ geometry: buffer2km, symbol: buffer2kmSymbol });
+
+            graphicsLayer.add(bufferGraphic1);
+            graphicsLayer.add(bufferGraphic2);
+
+            // Distance between driver and customer
+            const driverPoint = new Point({
+              longitude: currentGPS[0],
+              latitude: currentGPS[1],
+              spatialReference: { wkid: 4326 },
+            });
+            const distanceToCustomer = geometryEngine.geodesicLength(new Polyline({
+              paths: [[currentGPS, [100.5318, 13.745]]],
+              spatialReference: { wkid: 4326 }
+            }), "meters");
+            driverDistanceElement.innerHTML = `${distanceToCustomer.toFixed(2)} meters`;
+
+            // Update driver status based on distance to customer
+            if (geometryEngine.intersects(driverPoint, buffer1km)) {
+              driverStatusElement.innerHTML = "Driver Status: Arrived!";
+              driverStatusElement.style.color = "green";
+            } else if (geometryEngine.intersects(driverPoint, buffer2km)) {
+              driverStatusElement.innerHTML = "Driver Status: In Area";
+              driverStatusElement.style.color = "orange";
+            } else {
+              driverStatusElement.innerHTML = "Driver Status: Not in Area";
+              driverStatusElement.style.color = "blue";
+            }
+
+            // Add the current GPS to the route array and draw the path
+            route.push(currentGPS);
+            drawRoute(route);
+
+             // โจทย์
+            // 1. สร้าง Buffer วงกลมจากตำแหน่งลูกค้า จำนวน 2 วง รัศมี 1 และ 2 กิโลเมตร
+            // 2. เมื่อ Driver ขยับตำแหน่งมาในวงกลมรัศมี 2 กิโลเมตร ให้แสดงข้อความ 'In Area' บน driverStatusElement
+            // 3. เมื่อ Driver ขยับตำแหน่งมาในวงกลมรัศมี 1 กิโลเมตร ให้แสดงข้อความ 'Arrived!' บน driverStatusElement
+            // 4. Bonus (Optional) ให้แสดงระยะทาง ระยะห่างระหว่าง driver และ Customer ด้วยการใช้ method: geodesicLength
+            // Ref: https://developers.arcgis.com/javascript/latest/api-reference/esri-geometry-geometryEngine.html#geodesicLength
+          } else {
+            clearInterval(_moveInterval);
+          }
+        }, 1000);
+
+        function drawDriver(location) {
+          const pointGraphic = new Graphic({
+            geometry: {
+              type: "point",
+              longitude: location[0],
+              latitude: location[1],
+            },
+            symbol: riderSymbol,
+            spatialReference: { wkid: 4326 },
+          });
+          graphicsLayer.add(pointGraphic);
+          return pointGraphic;
+        }
+
+        function drawRoute(route) {
+          const polyline = new Polyline({
+            paths: route,
+            spatialReference: { wkid: 4326 },
+          });
+
+          const routeGraphic = new Graphic({
+            geometry: polyline,
+            symbol: {
+              type: "simple-line",
+              color: "red",
+              width: 2,
+            },
+          });
+          graphicsLayer.add(routeGraphic);
+        }
+      });
+    </script>
+  </body>
+</html>

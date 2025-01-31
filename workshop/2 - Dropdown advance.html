@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HTML Select Tutorial</title>
+    <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+    }
+
+    select {
+      padding: 5px;
+      font-size: 16px;
+    }
+  </style>
+  </head>
+
+  <body>
+    <label for="dynamicSelect">Choose an animal:</label>
+    <select id="dynamicSelect"></select>
+    <script>
+    // ประกาศข้อมูลที่จะนำไปแสดงใน Choice List
+    const animals = ["Dog", "Cat", "Elephant", "Tiger", "Rabbit", "Horse", "Lion", "Monkey", "Panda", "Penguin"];
+
+    // (ดึง) element <select> ที่มี id เป็น dynamicSelect มาเก็บไว้ในตัวแปรชื่อ htmlSelect เพื่อนำไปใช้ในภายหลัง
+    const htmlSelect = document.getElementById("dynamicSelect");
+
+    // ทำการวนลูปรายชื่อสัตว์ที่ละตัวในตัวแปร animals และสร้างตัวเลือก (<option>) ให้กับ <select> ทีละตัว
+    animals.forEach(animal => {
+      const option = document.createElement("option");
+      option.value = animal.toLowerCase();
+      option.textContent = animal;
+      htmlSelect.appendChild(option); // appendChild = ยัด Content/Element เข้าไปข้างใน
+    });
+  </script>
+  </body>
+
+</html>

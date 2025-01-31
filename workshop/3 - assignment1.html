@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>HTML Select Tutorial</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 20px;
+      }
+
+      select {
+        padding: 5px;
+        font-size: 16px;
+      }
+    </style>
+  </head>
+
+  <body>
+    <label>Choose an animal:</label>
+    <select id="dynamicSelect"></select>
+    <div id="showResult"></div>
+    <script>
+      // ประกาศข้อมูลที่จะนำไปแสดงใน Choice List
+      const animals = ["Dog", "Cat", "Elephant", "Tiger", "Rabbit"];
+
+      // (ดึง) element <select> ที่มี id เป็น dynamicSelect มาเก็บไว้ในตัวแปรชื่อ htmlSelect เพื่อนำไปใช้ในภายหลัง
+      const htmlSelect = document.getElementById("dynamicSelect");
+
+      // ทำการวนลูปรายชื่อสัตว์ที่ละตัวในตัวแปร animals และสร้างตัวเลือก (<option>) ให้กับ <select> ทีละตัว
+      animals.forEach((animal) => {
+        const option = document.createElement("option");
+        option.value = animal.toLowerCase();
+        option.textContent = animal;
+        htmlSelect.appendChild(option); // appendChild = ยัด Content/Element เข้าไปข้างใน
+      });
+
+      // โจทย์: จงผูก Event ให้ <select> เวลาที่ User เปลี่ยนค่า จะต้องแสดงค่าที่ User เลือกใน drop down ล่าสุดออกมาบน element <div> id = showResult เหมือนไฟล์ '1 - Dropdown basic.html'
+      // .... เพิ่ม logic code ด้านล่าง
+      document.getElementById("showResult").innerHTML = `The selected value is: ${document.getElementById("dynamicSelect").value}`;
+      document.getElementById("dynamicSelect").addEventListener("change", function () {
+      const selectedItem = this.value;
+      document.getElementById("showResult").innerHTML = `The selected value is: ${selectedItem}`;
+      });
+
+    </script>
+  </body>
+</html>

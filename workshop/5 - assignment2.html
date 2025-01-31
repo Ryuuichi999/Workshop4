@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ArcGIS Real-Time Delivery Tracking</title>
+    <script src="https://js.arcgis.com/4.24/"></script>
+    <style>
+      html,
+      body,
+      #viewDiv {
+        height: 100%;
+        width: 100%;
+        margin: 0;
+        padding: 0;
+      }
+
+      #controls {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        background: white;
+        padding: 10px;
+        z-index: 100;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div id="controls">
+      <label for="driverSelect">Select Driver: </label>
+      <select id="driverSelect"></select>
+    </div>
+    <div id="viewDiv"></div>
+    <script>
+      require([
+        "esri/Map",
+        "esri/views/MapView",
+        "esri/Graphic",
+        "esri/layers/GraphicsLayer",
+      ], function (Map, MapView, Graphic, GraphicsLayer) {
+        const map = new Map({ basemap: "streets-navigation-vector" });
+        const view = new MapView({
+          container: "viewDiv",
+          map: map,
+          center: [100.5018, 13.7563],
+          zoom: 13,
+        });
+        const graphicsLayer = new GraphicsLayer();
+        map.add(graphicsLayer);
+
+        // Draw current position
+        const riderSymbol = {
+          type: "picture-marker", // ใช้รูปภาพ
+          url: "https://t4.ftcdn.net/jpg/05/31/33/23/360_F_531332360_YR5lWiM6QcUwyaUJPhZUeXJfR74CjHl7.jpg",
+          width: "36px",
+          height: "36px",
+        };
+
+        const destinationSymbol = {
+          type: "picture-marker", // ใช้รูปภาพ
+          url: "https://cdn-icons-png.flaticon.com/512/1378/1378583.png",
+          width: "36px",
+          height: "36px",
+        };
+
+        const routeSymbol = { type: "simple-line", color: "blue", width: 2 };
+
+        const driverData = {
+          driver1: {
+            route: [
+              [100.4918, 13.7563],
+              [100.495, 13.755],
+              [100.5, 13.753],
+              [100.505, 13.751],
+              [100.5118, 13.75],
+              [100.52, 13.748],
+              [100.525, 13.7465],
+              [100.5318, 13.745],
+            ],
+          },
+          driver2: {
+            route: [
+              [100.4918, 13.7563],
+              [100.488917, 13.764123],
+              [100.482519, 13.764881],
+              [100.479521, 13.765818],
+              [100.479188, 13.76085],
+              [100.469299, 13.760701],
+              [100.478645, 13.768162],
+              [100.484744, 13.772364],
+            ],
+          },
+        };
+
+        // (ดึง) element <select> ที่มี id เป็น driverSelect มาเก็บไว้ในตัวแปรชื่อ htmlSelect เพื่อนำไปใช้ในภายหลัง
+        const htmlSelect = document.getElementById("driverSelect");
+        const defaultOption = document.createElement("option");
+        defaultOption.value = "เลือก";
+        defaultOption.textContent = "เลือก";
+        htmlSelect.appendChild(defaultOption);
+
+        for (var driver in driverData) {
+          const option = document.createElement("option");
+          option.value = driver.toLowerCase();
+          option.textContent = driver;
+          htmlSelect.appendChild(option); // appendChild = ยัด Content/Element เข้าไปข้างใน
+        }
+
+        let _moveInterval = null;
+        let routePath = [];
+        document
+          .getElementById("driverSelect")
+          .addEventListener("change", function () {
+            const selectedDriver = this.value;
+            if (driverData[selectedDriver]) {
+              if (_moveInterval) clearInterval(_moveInterval);
+              routePath = [];
+              animateDriver(driverData[selectedDriver].route);
+            }
+          });
+
+          function clone(data) {
+            return JSON.parse(JSON.stringify(data));
+          }
+
+          function animateDriver(routeCoords) {
+          const routePath = []; // เก็บเส้นทางที่ผ่านมาทั้งหมด
+          const selectedDriverRoute = clone(routeCoords);
+
+           _moveInterval = setInterval(() => {
+          // ดึงตำแหน่งปัจจุบัน
+          const currentGPS = selectedDriverRoute.shift();
+
+        if (currentGPS != null) {
+        // ลบกราฟิกทั้งหมดก่อนวาดใหม่
+        graphicsLayer.removeAll();
+
+        // เพิ่มตำแหน่งปัจจุบันเข้าในเส้นทาง
+        routePath.push(currentGPS);
+
+        // วาดตำแหน่งปัจจุบันของ Driver
+        const point = {
+          type: "point",
+          longitude: currentGPS[0],
+          latitude: currentGPS[1],
+        };
+        const pointGraphic = new Graphic({
+          geometry: point,
+          symbol: riderSymbol,
+        });
+        graphicsLayer.add(pointGraphic);
+
+        // วาดเส้นทางที่ผ่านมาทั้งหมด
+        if (routePath.length > 1) {
+          const polyline = {
+            type: "polyline",
+            paths: routePath,
+          };
+          const polylineGraphic = new Graphic({
+            geometry: polyline,
+            symbol: routeSymbol,
+          });
+          graphicsLayer.add(polylineGraphic);
+        }
+      } else {
+        // เมื่อถึงปลายทาง ให้แสดงธงที่ตำแหน่งสุดท้าย
+        const destinationPoint = {
+          type: "point",
+          longitude: routePath[routePath.length - 1][0],
+          latitude: routePath[routePath.length - 1][1],
+        };
+        const destinationGraphic = new Graphic({
+          geometry: destinationPoint,
+          symbol: destinationSymbol,
+        });
+        graphicsLayer.add(destinationGraphic);
+
+        // เคลียร์ interval
+        clearInterval(_moveInterval);
+        }
+         }, 1000);
+        }
+      });
+    </script>
+    <!-- Ref -->
+    <!-- https://developers.arcgis.com/javascript/latest/api-reference/esri-layers-GraphicsLayer.html -->
+  </body>
+</html>
